@@ -36,9 +36,12 @@ int main() {
             std::vector<std::string> boardStr = body.value("boardCards", std::vector<std::string>{});
             std::vector<std::string> opponentRange = body.value("opponentRange", std::vector<std::string>{});
             int numPlayers = body.value("numPlayers", 1);
+            int simulations = body.value("simulations", 10000);
             uint64_t seed = body.value("seed", 0ULL);
 
             if (heroStr.size() != 2) throw std::runtime_error("heroCards must have 2 cards");
+            if (simulations < 100) throw std::runtime_error("simulations must be >= 100");
+            if (numPlayers < 1) throw std::runtime_error("numPlayers must be >= 1");
 
             std::pair<int, int> heroCards = {parseCard(heroStr[0]), parseCard(heroStr[1])};
             std::vector<int> boardCards;
@@ -47,13 +50,13 @@ int main() {
 
             double equity = 0.0;
             if (boardCards.size() == 0) {
-                equity = PreFlopSimulation(numPlayers, heroCards, opponentRange, seed);
+                equity = PreFlopSimulation(numPlayers, heroCards, opponentRange, simulations, seed);
             } else if (boardCards.size() == 3) {
-                equity = FlopSimulation(numPlayers, heroCards, boardCards, opponentRange, seed);
+                equity = FlopSimulation(numPlayers, heroCards, boardCards, opponentRange, simulations, seed);
             } else if (boardCards.size() == 4) {
-                equity = TurnSimulation(numPlayers, heroCards, boardCards, opponentRange, seed);
+                equity = TurnSimulation(numPlayers, heroCards, boardCards, opponentRange, simulations, seed);
             } else if (boardCards.size() == 5) {
-                equity = RiverSimulation(numPlayers, heroCards, boardCards, opponentRange, seed);
+                equity = RiverSimulation(numPlayers, heroCards, boardCards, opponentRange, simulations, seed);
             } else {
                 throw std::runtime_error("boardCards must have 0, 3, 4, or 5 cards");
             }

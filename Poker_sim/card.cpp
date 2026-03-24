@@ -1,7 +1,7 @@
 #include "card.h"
 
 int cardToInt(Rank rank, Suit suit) {
-    int id = rank * 4 + suit + 1;
+    int id = static_cast<int>(rank) * 4 + static_cast<int>(suit) + 1;
     return id;
 }
 
@@ -40,7 +40,9 @@ int parseCard(const::std::string& card) {
 
 std::string cardToString(int card) {
     int zeroBased = card - 1;
-    Rank rank = (Rank)(zeroBased / 4);
-    Suit suit = (Suit)(zeroBased % 4);
-    return std::string(1, '2' + rank) + std::string(1, 'c' + suit);
+    Rank rank = static_cast<Rank>(zeroBased / 4);
+    Suit suit = static_cast<Suit>(zeroBased % 4);
+    static const std::string ranks = "23456789TJQKA";
+    static const std::string suits = "cdhs";
+    return std::string(1, ranks[static_cast<int>(rank)]) + std::string(1, suits[static_cast<int>(suit)]);
 };

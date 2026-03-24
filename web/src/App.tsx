@@ -44,7 +44,14 @@ const TOP_20 = [
 ]
 
 const SUITS = ['h', 's', 'd', 'c']
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+const RAW_API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
+
+function equityEndpointUrl() {
+  // In local dev, use Vite proxy (`/api -> 127.0.0.1:8080`) to avoid CORS issues.
+  if (import.meta.env.DEV) return '/api/equity'
+  if (!RAW_API_BASE_URL) return '/api/equity'
+  return `${RAW_API_BASE_URL.replace(/\/+$/, '')}/api/equity`
+}
 
 type PickerTarget = {
   section: 'hero' | 'board'
@@ -114,7 +121,7 @@ function App() {
     return () => window.removeEventListener('mouseup', onMouseUp)
   }, [])
 
-  const estimateAbortRef = useRef<AbortController | null>(null)
+  const estimateRequestIdRef = useRef(0)
   useEffect(() => {
     const heroA = hero1.trim()
     const heroB = hero2.trim()
@@ -178,16 +185,14 @@ function App() {
       return
     }
 
-    const controller = new AbortController()
-    estimateAbortRef.current?.abort()
-    estimateAbortRef.current = controller
+    const requestId = ++estimateRequestIdRef.current
 
     const debounceMs = 650
     const timeoutId = window.setTimeout(async () => {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`${API_BASE_URL}/api/equity`, {
+        const res = await fetch(equityEndpointUrl(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -198,23 +203,62 @@ function App() {
             seed: seedStr ? seedNum : 0,
             opponentRange,
           }),
-          signal: controller.signal,
         })
 
-        const data = await res.json()
-        if (!res.ok) throw new Error(data?.error ?? 'Request failed')
-        setEquity(Number(data.equity) * 100)
+        const contentType = res.headers.get('content-type') ?? ''
+        const isJson = contentType.includes('application/json')
+        let data: unknown = null
+        let textBody = ''
+
+        if (isJson) {
+          data = await res.json().catch(() => null)
+        } else {
+          textBody = await res.text().catch(() => '')
+        }
+
+        if (!res.ok) {
+          const apiError =
+            typeof data === 'object' && data !== null && 'error' in data
+              ? String((data as { error?: unknown }).error ?? '')
+              : ''
+          const fallback = textBody.trim() || `Request failed (${res.status})`
+          throw new Error(apiError || fallback)
+        }
+
+        const equityValue =
+          typeof data === 'object' && data !== null && 'equity' in data
+            ? Number((data as { equity?: unknown }).equity)
+            : Number.NaN
+        const rawEquity =
+          typeof data === 'object' && data !== null && 'equity' in data
+            ? (data as { equity?: unknown }).equity
+            : undefined
+        if (rawEquity === null || !Number.isFinite(equityValue)) {
+          throw new Error('API returned invalid equity value')
+        }
+
+        if (requestId !== estimateRequestIdRef.current) return
+        setEquity(equityValue * 100)
       } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        setError(err instanceof Error ? err.message : 'Unknown error')
+        if (requestId !== estimateRequestIdRef.current) return
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        const likelyNetworkIssue =
+          err instanceof TypeError ||
+          /load failed|failed to fetch|networkerror|network error/i.test(message)
+        setError(
+          likelyNetworkIssue
+            ? 'Cannot reach equity API. Start `./build/poker_server` on port 8080 and keep Vite dev server running.'
+            : message,
+        )
       } finally {
+        if (requestId !== estimateRequestIdRef.current) return
         setLoading(false)
       }
     }, debounceMs)
 
     return () => {
       window.clearTimeout(timeoutId)
-      controller.abort()
+      estimateRequestIdRef.current += 1
     }
   }, [hero1, hero2, boardCards, numPlayers, simulations, seed, selectedRanges])
 
