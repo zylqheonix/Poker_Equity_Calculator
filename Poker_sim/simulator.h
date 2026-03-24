@@ -3,6 +3,8 @@
 #include "evaluator.h"
 #include "card.h"
 #include "range.h"
+#include <array>
+#include <cstdint>
 #include <vector>
 #include <random>
 #include <algorithm>
