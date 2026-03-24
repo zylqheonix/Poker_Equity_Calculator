@@ -1,0 +1,19 @@
+# Root-level build outputs
+/build/
+
+# Environment files
+.env
+.env.*
+
+# OS/editor noise
+.DS_Store
+
+# Local tooling/cache artifacts
+/.cache/
+/.cursor/
+/.vscode/
+*.o
+web/.vite/
+
+# Large local lookup table (not in GitHub history)
+Poker_sim/HandRanks.dat
