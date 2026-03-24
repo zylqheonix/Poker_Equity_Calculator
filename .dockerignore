@@ -1,0 +1,24 @@
+.git
+.gitignore
+
+# Local build artifacts
+build
+**/build
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE and cache files
+.cache
+.cursor
+.vscode
+.DS_Store
+
+# Frontend dependencies/build
+web/node_modules
+web/dist
+
+# Python cache
+__pycache__
+*.pyc
